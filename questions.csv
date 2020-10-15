@@ -1,0 +1,12 @@
+IMPORTANT: questions.csv can be downloaded from https://www.reddit.com/r/datasets/comments/1uyd0t/200000_jeopardy_questions_in_a_json_file/.  I did not scrape the questions myself.
+
+Small sample:
+"1","1984-09-10","Jeopardy!","LAKES & RIVERS","100","River mentioned most often in the Bible","the Jordan"
+"1","1984-09-10","Jeopardy!","LAKES & RIVERS","200","Scottish word for lake","loch"
+"1","1984-09-10","Jeopardy!","LAKES & RIVERS","400","American river only 33 miles shorter than the Mississippi","the Missouri"
+"1","1984-09-10","Jeopardy!","LAKES & RIVERS","500","World's largest lake, nearly 5 times as big as Superior","the Caspian Sea"
+"1","1984-09-10","Jeopardy!","LAKES & RIVERS","800","River in <a href=""http://www.j-archive.com/media/1984-09-10_J_14.mp3"">this</a> famous song:","the Volga River"
+"1","1984-09-10","Jeopardy!","INVENTIONS","100","Marconi's wonderful wireless","the radio"
+"1","1984-09-10","Jeopardy!","INVENTIONS","200","In 1869 an American minister created this ""oriental"" transportation","the rickshaw"
+"1","1984-09-10","Jeopardy!","INVENTIONS","300","A 1920's hunting trip to Canada inspired Birdseye's food preserving method","freezing"
+"1","1984-09-10","Jeopardy!","INVENTIONS","400","This fastener gets its name from a brand of galoshes it was used on","the zipper"
