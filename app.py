@@ -6,6 +6,50 @@ from random import choices
 from tkinter import ttk
 
 
+class WindowedApplication(tk.Tk):
+    '''TKinter App supporting multiple hidden windows.
+    
+    Args:
+        *args, **kwargs: Parameters to pass to tk.Tk
+        title (str): Window title
+    '''
+
+    def __init__(self, *args, title:str = 'Too Lazy to Set a Title', **kwargs):
+        super().__init__(*args, **kwargs)
+        super().title(title)
+        self._frame = None
+
+
+    def show_page(self, page_class):
+        '''Show a page.
+        
+        Args:
+            page_class: tk.Frame-like callable to instantiate and show
+        '''
+        if self._frame:
+            self._frame.destroy()
+        self._frame = page_class(self)
+        self._frame.pack(side='top', fill='y', expand=1)
+
+
+class Page(tk.Frame):
+    '''TKinter frame for use with WindowedApplication.
+    
+    Args:
+        master: tkinter container object with a show_page method.
+        *args, **kwargs: Parameters to pass to tk.Frame. 
+    '''
+
+    def __init__(self, master, *args, **kwargs):
+        super().__init__(master, *args, **kwargs)
+        self.master = master
+
+
+    def show_page(self, page_class):
+        '''Call the master method to show `page_class`'''
+        self.master.show_page(page_name)
+
+
 def load_questions(file='questions.csv'):
     questions = defaultdict(list)
     with open('questions.csv', encoding='utf-8') as infile:
@@ -23,7 +67,7 @@ def choose_random_category(questions):
 
 class App(tk.Tk):
 
-    def __init__(self, title='J-Practice', log_file='log.csv', question_file='questions.csv', *args, **kwargs):
+    def __init__(self, title='J-Practice', *args, **kwargs):
         super().__init__(*args, **kwargs)
         ttk.Style().theme_use('clam')
         self.geometry('600x100')
@@ -124,8 +168,5 @@ class App(tk.Tk):
 
 
 if __name__ == '__main__':
-    parser = ArgumentParser(description='Start J-Practice')
-    parser.add_argument('-q', '--question-file', help='CSV of trivia questions', default='questions.csv')
-    parser.add_argument('-l', '--log-file', help='Output file for tracking performance', default='log.csv')
     app = App()
     app.mainloop()
