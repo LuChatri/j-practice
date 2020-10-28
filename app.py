@@ -1,3 +1,4 @@
+import argparse
 import csv
 import tkinter as tk
 from collections import defaultdict
@@ -123,5 +124,8 @@ class App(tk.Tk):
 
 
 if __name__ == '__main__':
+    parser = ArgumentParser(description='Start J-Practice')
+    parser.add_argument('-q', '--question-file', help='CSV of trivia questions', default='questions.csv')
+    parser.add_argument('-l', '--log-file', help='Output file for tracking performance', default='log.csv')
     app = App()
     app.mainloop()
