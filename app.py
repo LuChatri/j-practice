@@ -4,7 +4,7 @@ import os.path
 import random
 import re
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 
 
 class WindowedApplication(tk.Tk):
@@ -214,7 +214,7 @@ class App(WindowedApplication):
 
 
     def _error(self, error_text):
-        print(error_text)
+        Messagebox.showerror(title='Error', message=error_text) 
     
     
     def destroy(self):
