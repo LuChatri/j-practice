@@ -1,9 +1,10 @@
-import configparser
 import csv
 import os.path
 import random
-import re
 import tkinter as tk
+
+from configparser import ConfigParser
+from collections.abc import Iterable
 from tkinter import ttk, messagebox
 
 ########## TKinter Wrapper
@@ -74,7 +75,7 @@ DEFAULTS = {
 }
 
 
-def load_jeopardy_settings(file:str = 'settings.cnf') -> configparser.ConfigParser:
+def load_jeopardy_settings(file:str = 'settings.cnf') -> ConfigParser:
     '''Load a ConfigParser with J-Practice settings.
 
     Args:
@@ -88,7 +89,7 @@ def load_jeopardy_settings(file:str = 'settings.cnf') -> configparser.ConfigPars
     return settings
 
 
-def save_jeopardy_settings(settings:configparser.ConfigParser, file:str = 'settings.cnf'):
+def save_jeopardy_settings(settings:ConfigParser, file:str = 'settings.cnf'):
     '''Save J-Practice settings.
 
     Args:
@@ -100,7 +101,49 @@ def save_jeopardy_settings(settings:configparser.ConfigParser, file:str = 'setti
 
 
 ########## End Settings Parser
-########## Settings Parser
+########## Question Manager
+
+
+@dataclass
+class Question:
+    identifer: str
+    question: str
+    answer: str
+    correct_value: float
+    incorrect_value: float
+    skip_value: float
+    tags: Iterable[str] = []
+
+
+class QuestionManager:
+    '''Loads and generates next J-Practice questions.
+
+    Args:
+        file (str): Path to file to load questions from.
+    '''
+
+    def __init__(self, questions: Iterable[Question]):
+        self.questions = questions
+
+
+    def load(self, file: str, *args, ignore_bad_lines:bool = False, **kwargs):
+        with open(file, 'r', encoding='utf-8') as q_file:
+            reader = csv.reader(file, *args, **kwargs)
+            for row in reader:
+                if len(row) < 6 and not ignore_bad_lines:
+                    raise IndexError('Row {} is too short'.format(row))
+
+                try:
+                    q_values = list(map(float, row[3:6]))
+                except ValueError:
+                    if not ignore_bad_lines:
+                        raise ValueError('Bad float value in row {}'.format(row))
+                    else:
+                        continue
+
+                tags = row[6:]
+                question = Question(*row[:3], *q_values, tags)
+                self.questions.append(question)
 
 
 ##class App(WindowedApplication):
