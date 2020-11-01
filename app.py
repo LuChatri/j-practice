@@ -170,15 +170,23 @@ class QuestionManager:
         return random.choice(self._questions)
 
 
-    def random_tag(self): -> str
-        '''Choose a random tag from the loaded questions, ignoring frequency.
+    def random_tag(self, ignore_frequency=True): -> str
+        '''Choose a random tag from the loaded questions.
+
+        Args:
+            ignore_frequency (bool): Whether to weight category choice by category frequency.
 
         Note:
             Raises IndexError if no questions are loaded.
 
         Return (str): Chosen tag.
         '''
-        cats = set(*q.tags for q in self.questions)
+        # I think generating a set outright rather than generating a list, then a set if
+        # needed might prevent full evaluation of the list, conserving memory.
+        if ignore_frequency:
+            cats = set(*q.tags for q in self.questions)
+        else:
+            cats = [*q.tags for q in self.questions]
         return random.choice(cats)
 
 
