@@ -72,8 +72,19 @@ DEFAULTS = {
     }
 }
 
+
 def load_settings(file:str = 'settings.cnf'):
-    pass
+    '''Load a ConfigParser with J-Practice settings.
+
+    Args:
+        file (str): Path to file to load settings from.
+
+    Return (configparser.ConfigParser): Loaded settings.
+    '''
+    settings = configparser.ConfigParser()
+    settings.read_dict(DEFAULTS)
+    settings.read(file)
+    return settings
 
 
 
