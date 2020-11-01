@@ -184,6 +184,7 @@ class App(WindowedApplication):
     def _next_question(self):
         self.active_question = random.choice(self.questions)
         self.category_l.configure(text=self.active_question[1])
+        self.value_l.configure(text='$'+str(self.active_question[2]))
         self.question_l.configure(text=self.active_question[3])
         self.left_b.configure(text='Buzz In',
                               command=self._answer,
