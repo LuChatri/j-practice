@@ -190,6 +190,22 @@ class QuestionManager:
         return random.choice(cats)
 
 
+########## End Question Manager
+########## GUI
+
+
+class App(WindowedApplication):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.settings = load_jeopardy_settings()
+
+
+    def destroy(self):
+        save_jeopardy_settings(self.settings)
+        super().destroy()
+
+
 ##class App(WindowedApplication):
 ##
 ##
