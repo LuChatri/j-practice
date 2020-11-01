@@ -56,6 +56,7 @@ class Page(tk.Frame):
 ########## End TKinter Wrapper
 ########## Settings Parser
 
+
 DEFAULTS = {
     'Settings': {
         'Title': 'J-Practice'
@@ -73,7 +74,7 @@ DEFAULTS = {
 }
 
 
-def load_settings(file:str = 'settings.cnf'):
+def load_jeopardy_settings(file:str = 'settings.cnf') -> configparser.ConfigParser:
     '''Load a ConfigParser with J-Practice settings.
 
     Args:
@@ -87,6 +88,19 @@ def load_settings(file:str = 'settings.cnf'):
     return settings
 
 
+def save_jeopardy_settings(settings:configparser.ConfigParser, file:str = 'settings.cnf'):
+    '''Save J-Practice settings.
+
+    Args:
+        settings (configparser.ConfigParser): Settings to save.
+        file (str): Path to file to load settings from.
+    '''
+    with open(file, 'w') as settings_file:
+        settings.write(settings_file)
+
+
+########## End Settings Parser
+########## Settings Parser
 
 
 ##class App(WindowedApplication):
