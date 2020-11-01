@@ -143,14 +143,18 @@ class App(WindowedApplication):
                                     anchor=tk.CENTER)
         self.category_l.grid(row=0, column=0, sticky='nesw')
         
+        self.value_l = ttk.Label(question_frame, text='', anchor=tk.CENTER)
+        self.value_l.grid(row=1, column=0, sticky='nesw')
+        
         self.question_l = ttk.Label(question_frame, text='',
                                     wraplength=400,
                                     anchor=tk.CENTER)
-        self.question_l.grid(row=1, column=0, sticky='nesw')
+        self.question_l.grid(row=2, column=0, sticky='nesw')
         
         question_frame.grid_columnconfigure(0, weight=1)
-        for row in range(2):
-            question_frame.grid_rowconfigure(row, weight=1)
+        question_frame.grid_rowconfigure(0, weight=1)
+        question_frame.grid_rowconfigure(1, weight=1)
+        question_frame.grid_rowconfigure(2, weight=1)
         
         b_frame = ttk.Frame(self)
         b_frame.grid(row=1, column=0, sticky='nesw')
@@ -161,12 +165,20 @@ class App(WindowedApplication):
         self.right_b = ttk.Button(b_frame)
         self.right_b.grid(row=0, column=1, sticky='nesw')
         
+        self.analytics_b = ttk.Button(b_frame, text='Analytics', command=self._show_analytics)
+        self.analytics_b.grid(row=1, column=0, columnspan=2, sticky='nesw')
+        
         b_frame.grid_rowconfigure(0, weight=1)
-        for col in range(2):
-            b_frame.grid_columnconfigure(col, weight=1)
+        b_frame.grid_rowconfigure(1, weight=1)
+        b_frame.grid_columnconfigure(0, weight=1)
+        b_frame.grid_columnconfigure(1, weight=1)
         
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
+        
+        
+    def _show_analytics(self):
+        pass
 
 
     def _next_question(self):
@@ -226,4 +238,5 @@ class App(WindowedApplication):
 
 if __name__ == '__main__':
     app = App()
+    app.geometry('500x200')
     app.mainloop()
