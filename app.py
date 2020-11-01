@@ -119,31 +119,67 @@ class QuestionManager:
     '''Loads and generates next J-Practice questions.
 
     Args:
-        file (str): Path to file to load questions from.
+        questions (Iterable[Question]): Initial question bank.
+        queue (Iterable[Question]): Mext questions to get when next_question() is called.
     '''
 
-    def __init__(self, questions: Iterable[Question]):
-        self.questions = questions
+    def __init__(self, questions: Iterable[Question], queue: Iterable[Question] = []):
+        self._questions = questions
+        self._queue = []
 
 
     def load(self, file: str, *args, ignore_bad_lines:bool = False, **kwargs):
+        '''Add questions from a file to the question bank.
+
+        Args:
+            file (str): Path to file to load questions from.
+            ignore_bad_lines (bool): Whether to error when a malformed line is encountered.
+            *args, **kwargs: Parameters to pass to file's CSV reader.
+
+        Note:
+            Each line is expected to contain a Question's fields in series. First, an
+            identifier, then the question, answer, value when correct, value when incorrect,
+            value when skipped, and tags, which can span any number of columns.
+        '''
         with open(file, 'r', encoding='utf-8') as q_file:
             reader = csv.reader(file, *args, **kwargs)
             for row in reader:
-                if len(row) < 6 and not ignore_bad_lines:
+                if len(row) < 6:
+                    if ignore_bad_lines:
+                        continue
                     raise IndexError('Row {} is too short'.format(row))
+                    
 
                 try:
                     q_values = list(map(float, row[3:6]))
                 except ValueError:
-                    if not ignore_bad_lines:
-                        raise ValueError('Bad float value in row {}'.format(row))
-                    else:
+                    if ignore_bad_lines:
                         continue
+                    raise ValueError('Bad float value in row {}'.format(row))
 
                 tags = row[6:]
                 question = Question(*row[:3], *q_values, tags)
-                self.questions.append(question)
+                self._questions.append(question)
+
+
+    def random_question(self): -> Question
+        '''Choose a random question from the loaded questions.
+
+        Return (Question): Chosen question.
+        '''
+        return random.choice(self._questions)
+
+
+    def random_tag(self): -> str
+        '''Choose a random tag from the loaded questions, ignoring frequency.
+
+        Note:
+            Raises IndexError if no questions are loaded.
+
+        Return (str): Chosen tag.
+        '''
+        cats = set(*q.tags for q in self.questions)
+        return random.choice(cats)
 
 
 ##class App(WindowedApplication):
