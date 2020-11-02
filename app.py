@@ -210,37 +210,72 @@ class App(WindowedApplication):
         title = self._settings.get('Settings', 'Title')
         self.title(title)
 
-        # Load questions
-        self._q_manager = QuestionManager()
-        self._load_questions()
+        headline = ttk.Label(self, text='J-Practice')
+        practice = ttk.Button(self, text='Practice',
+                              command=lambda: self.show_page(Practice))
+        analyze = ttk.Button(self, text='Analyze',
+                             command=lambda: self.show_page(Analyze))
+        settings = ttk.Button(self, text='Settings',
+                              command=lambda: self.show_page(Settings))
+        quit_b = ttk.Button(self, text='Quit', command=self.destroy)
 
+        headline.grid(row=0, column=0, sticky='nesw')
+        practice_b.grid(row=1, column=0, sticky='nesw')
+        analyze_b.grid(row=2, column=0, sticky='nesw')
+        settings_b.grid(row=3, column=0, sticky='nesw')
+        quit_b.grid(row=4, column=0, sticky='nesw')
 
-    def _load_questions(self):
-        # In case ignorebadlines is incorrectly set.
-        try:
-            ibl = self._settings.getboolean('Questions', 'ignorebadlines')
-        except (KeyError, ValueError):
-            messagebox.showwarning('Warning', '{Invalid ignorebadlines setting.')
-            ibl = DEFAULTS['Questions']['ignorebadlines']
-        
-        # Set function to be called when ecnountering a bad line.
-        if ibl:
-            obl = lambda x: None
-        else:
-            obl = lambda x: messagebox.showwarning('Warning', 'Bad line: {}'.format(x))
-
-        # Iterate through files and load questions.
-        paths = self._settings.get('Questions', 'files').split(',')
-        for path in paths:
-            if not os.path.isfile(path):
-                messagebox.showerror('Error', '{} does not exist. Could not load questions.')
-                continue
-            self._q_manager.load(path, on_bad_line=obl)
+        for row in range(5):
+            self.grid_rowconfigure(row, weight=1)
 
 
     def destroy(self):
         save_jeopardy_settings(self._settings)
         super().destroy()
+
+
+class Practice(Page):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._q_manager = QuestionManager()
+        self._load_questions()
+
+
+    def _load_questions(self):
+        settings = master._settings
+        
+        # ignorebadlines must be a boolean. Warn if it isn't.
+        try:
+            ibl = settings.getboolean('Questions', 'ignorebadlines')
+        except (KeyError, ValueError):
+            # Give a warning.
+            ibl = settings.get('Questions', 'ignorebadlines')
+            messagebox.showwarning('Warning', 'Invalid IgnoreBadLines Setting: {}.'.format(ibl))
+            # Set a default value for ibl.
+            ibl = DEFAULTS['Questions']['ignorebadlines']
+
+        # Set on_bad_line callback based on ignorebadlines.
+        if ibl:
+            obl = lambda line: None
+        else:
+            obl = lambda line: messagebox.showwarning('Warning', 'Invalid Line: {}'.format(line))
+
+        # Iterate through question files and load questions.
+        paths = settings.get('Questions', 'files').split(',')
+        for path in paths:
+            if not os.path.isfile(path):
+                messagebox.showerror('Error', 'Nonexistent Question File: {}'.format(path))
+                continue
+            self._q_manager.load(path, on_bad_line=obl)
+
+
+class Analyze(Page):
+    pass
+
+
+class Settings(Page):
+    pass
 
 
 if __name__ == '__main__':
