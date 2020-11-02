@@ -145,21 +145,21 @@ class QuestionManager:
                 
                 if len(row) < 6:
                     if on_bad_line is None:
-                        raise IndexError('Row {} is too short'.format(row))
+                        raise IndexError('Row Too Short: {}'.format(row))
                     else:
                         on_bad_line(row)
                         continue
                     
-
+                # Some values passed to Question must be floats.
                 try:
                     correct, incorrect, skip = map(float, row[3:6])
                 except ValueError:
                     if on_bad_line is None:
-                        raise ValueError('Bad float value in row {}'.format(row))
+                        raise ValueError('Bad Float Value in Row: {}'.format(row))
                     else:
                         on_bad_line(row)
                         continue
-
+                # Get the rest of the values passed to Question.
                 id, question, answer = row[:3]
                 tags = row[6:]
                 # The *[] syntax is needed since starred expressions must
@@ -202,6 +202,11 @@ class QuestionManager:
 
 
 class App(WindowedApplication):
+    '''J-Practice App
+
+    Args:
+        *args, **kwargs: Parameters to pass to WindowedApplication.
+    '''
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -234,6 +239,11 @@ class App(WindowedApplication):
 
 
 class Practice(Page):
+    '''Page for answering trivia questions.
+
+    Args:
+        *args, **kwargs: Parameters to pass to Page.
+    '''
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -242,6 +252,7 @@ class Practice(Page):
 
 
     def _load_questions(self):
+        '''Load questions from files specified in J-Practice settings.'''
         settings = master._settings
         
         # ignorebadlines must be a boolean. Warn if it isn't.
