@@ -79,7 +79,7 @@ def load_jeopardy_settings(file:str = 'settings.cnf') -> ConfigParser:
 
     Return (configparser.ConfigParser): Loaded settings.
     '''
-    settings = configparser.ConfigParser()
+    settings = ConfigParser()
     settings.read_dict(DEFAULTS)
     settings.read(file)    
     return settings
@@ -140,25 +140,32 @@ class QuestionManager:
             the bad row will be passed to the callable.
         '''
         with open(file, 'r', encoding='utf-8') as q_file:
-            reader = csv.reader(file, *args, **kwargs)
+            reader = csv.reader(q_file, *args, **kwargs)
             for row in reader:
+                
                 if len(row) < 6:
                     if on_bad_line is None:
                         raise IndexError('Row {} is too short'.format(row))
                     else:
                         on_bad_line(row)
+                        continue
                     
 
                 try:
-                    q_values = list(map(float, row[3:6]))
+                    correct, incorrect, skip = map(float, row[3:6])
                 except ValueError:
                     if on_bad_line is None:
                         raise ValueError('Bad float value in row {}'.format(row))
                     else:
                         on_bad_line(row)
+                        continue
 
+                id, question, answer = row[:3]
                 tags = row[6:]
-                question = Question(*row[:3], *q_values, tags)
+                # The *[] syntax is needed since starred expressions must
+                # follow positional arguments. Thus, tags must be passed
+                # not as a positional argument, but as a starred expression.
+                question = Question(id, question, answer, correct, incorrect, skip, tags)
                 self._questions.append(question)
 
 
@@ -200,7 +207,7 @@ class App(WindowedApplication):
         super().__init__(*args, **kwargs)
         self._settings = load_jeopardy_settings()
 
-        title = self.settings.get('Settings', 'Title')
+        title = self._settings.get('Settings', 'Title')
         self.title(title)
 
         # Load questions
@@ -211,18 +218,19 @@ class App(WindowedApplication):
     def _load_questions(self):
         # In case ignorebadlines is incorrectly set.
         try:
-            ibl = self.settings.getboolean('Questions', 'ignorebadlines')
+            ibl = self._settings.getboolean('Questions', 'ignorebadlines')
         except (KeyError, ValueError):
             messagebox.showwarning('Warning', '{Invalid ignorebadlines setting.')
             ibl = DEFAULTS['Questions']['ignorebadlines']
         
-        # Set function to be called on_bad_line.
+        # Set function to be called when ecnountering a bad line.
         if ibl:
             obl = lambda x: None
         else:
             obl = lambda x: messagebox.showwarning('Warning', 'Bad line: {}'.format(x))
-        
-        paths = self.settings.get('Questions', 'files').split(',')
+
+        # Iterate through files and load questions.
+        paths = self._settings.get('Questions', 'files').split(',')
         for path in paths:
             if not os.path.isfile(path):
                 messagebox.showerror('Error', '{} does not exist. Could not load questions.')
@@ -233,6 +241,11 @@ class App(WindowedApplication):
     def destroy(self):
         save_jeopardy_settings(self._settings)
         super().destroy()
+
+
+if __name__ == '__main__':
+    app = App()
+    app.mainloop()
 
 
 ##class App(WindowedApplication):
