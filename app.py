@@ -4,7 +4,8 @@ import random
 import tkinter as tk
 
 from configparser import ConfigParser
-from collections.abc import Iterable
+from typing import Callable, Iterable
+from dataclasses import dataclass
 from tkinter import ttk, messagebox
 
 ########## TKinter Wrapper
@@ -107,7 +108,7 @@ class Question:
     correct_value: float
     incorrect_value: float
     skip_value: float
-    tags: Iterable[str] = []
+    tags: Iterable[str] = list
 
 
 class QuestionManager:
@@ -161,7 +162,7 @@ class QuestionManager:
                 self._questions.append(question)
 
 
-    def random_question(self): -> Question
+    def random_question(self) -> Question:
         '''Choose a random question from the loaded questions.
 
         Return (Question): Chosen question.
@@ -169,7 +170,7 @@ class QuestionManager:
         return random.choice(self._questions)
 
 
-    def random_tag(self, ignore_frequency=True): -> str
+    def random_tag(self, ignore_frequency=True) -> str:
         '''Choose a random tag from the loaded questions.
 
         Args:
@@ -183,9 +184,9 @@ class QuestionManager:
         # I think generating a set outright rather than generating a list, then a set if
         # needed might prevent full evaluation of the list, conserving memory.
         if ignore_frequency:
-            cats = set(*q.tags for q in self.questions)
+            cats = set(t for t in q.tags for q in self.questions)
         else:
-            cats = [*q.tags for q in self.questions]
+            cats = [t for t in q.tags for q in self.questions]
         return random.choice(cats)
 
 
@@ -212,14 +213,14 @@ class App(WindowedApplication):
         try:
             ibl = self.settings.getboolean('Questions', 'ignorebadlines')
         except (KeyError, ValueError):
-            messagebox.showerror('Error', '{Invalid ignorebadlines setting.')
+            messagebox.showwarning('Warning', '{Invalid ignorebadlines setting.')
             ibl = DEFAULTS['Questions']['ignorebadlines']
         
         # Set function to be called on_bad_line.
         if ibl:
             obl = lambda x: None
         else:
-            obl = lambda x: messagebox.showerror('Error', 'Bad line: {}'.format(x))
+            obl = lambda x: messagebox.showwarning('Warning', 'Bad line: {}'.format(x))
         
         paths = self.settings.get('Questions', 'files').split(',')
         for path in paths:
