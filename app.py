@@ -210,7 +210,7 @@ class App(WindowedApplication):
         title = self._settings.get('Settings', 'Title')
         self.title(title)
 
-        headline = ttk.Label(self, text='J-Practice')
+        headline = ttk.Label(self, text='J-Practice', anchor=tk.CENTER)
         practice = ttk.Button(self, text='Practice',
                               command=lambda: self.show_page(Practice))
         analyze = ttk.Button(self, text='Analyze',
@@ -220,13 +220,12 @@ class App(WindowedApplication):
         quit_b = ttk.Button(self, text='Quit', command=self.destroy)
 
         headline.grid(row=0, column=0, sticky='nesw')
-        practice_b.grid(row=1, column=0, sticky='nesw')
-        analyze_b.grid(row=2, column=0, sticky='nesw')
-        settings_b.grid(row=3, column=0, sticky='nesw')
+        practice.grid(row=1, column=0, sticky='nesw')
+        analyze.grid(row=2, column=0, sticky='nesw')
+        settings.grid(row=3, column=0, sticky='nesw')
         quit_b.grid(row=4, column=0, sticky='nesw')
 
-        for row in range(5):
-            self.grid_rowconfigure(row, weight=1)
+        self.grid_columnconfigure(0, weight=1)
 
 
     def destroy(self):
