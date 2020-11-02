@@ -60,17 +60,12 @@ class Page(tk.Frame):
 
 DEFAULTS = {
     'Settings': {
-        'Title': 'J-Practice'
+        'title': 'J-Practice'
     },
         
     'Questions': {
-        'File': 'questions.csv',
-        'Delimiter': ',',
-        'RoundIndex': '2',
-        'CategoryIndex': '3',
-        'ValueIndex': '4',
-        'ClueIndex': '5',
-        'AnswerIndex': '6'
+        'files': 'questions.csv',
+        'ignorebadlines': 'yes'
     }
 }
 
@@ -85,7 +80,7 @@ def load_jeopardy_settings(file:str = 'settings.cnf') -> ConfigParser:
     '''
     settings = configparser.ConfigParser()
     settings.read_dict(DEFAULTS)
-    settings.read(file)
+    settings.read(file)    
     return settings
 
 
@@ -123,39 +118,43 @@ class QuestionManager:
         queue (Iterable[Question]): Mext questions to get when next_question() is called.
     '''
 
-    def __init__(self, questions: Iterable[Question], queue: Iterable[Question] = []):
+    def __init__(self, questions: Iterable[Question] = [], queue: Iterable[Question] = []):
         self._questions = questions
         self._queue = []
 
 
-    def load(self, file: str, *args, ignore_bad_lines:bool = False, **kwargs):
+    def load(self, file: str, *args, on_bad_line:Callable = None, **kwargs):
         '''Add questions from a file to the question bank.
 
         Args:
             file (str): Path to file to load questions from.
-            ignore_bad_lines (bool): Whether to error when a malformed line is encountered.
+            ignore_bad_lines (Callable): Function to call when a malformed line is encountered.
             *args, **kwargs: Parameters to pass to file's CSV reader.
 
         Note:
             Each line is expected to contain a Question's fields in series. First, an
             identifier, then the question, answer, value when correct, value when incorrect,
             value when skipped, and tags, which can span any number of columns.
+            If on_bad_line is not specified, an error will be raised. If it is specified,
+            the bad row will be passed to the callable.
         '''
         with open(file, 'r', encoding='utf-8') as q_file:
             reader = csv.reader(file, *args, **kwargs)
             for row in reader:
                 if len(row) < 6:
-                    if ignore_bad_lines:
-                        continue
-                    raise IndexError('Row {} is too short'.format(row))
+                    if on_bad_line is None:
+                        raise IndexError('Row {} is too short'.format(row))
+                    else:
+                        on_bad_line(row)
                     
 
                 try:
                     q_values = list(map(float, row[3:6]))
                 except ValueError:
-                    if ignore_bad_lines:
-                        continue
-                    raise ValueError('Bad float value in row {}'.format(row))
+                    if on_bad_line is None:
+                        raise ValueError('Bad float value in row {}'.format(row))
+                    else:
+                        on_bad_line(row)
 
                 tags = row[6:]
                 question = Question(*row[:3], *q_values, tags)
@@ -198,11 +197,40 @@ class App(WindowedApplication):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.settings = load_jeopardy_settings()
+        self._settings = load_jeopardy_settings()
+
+        title = self.settings.get('Settings', 'Title')
+        self.title(title)
+
+        # Load questions
+        self._q_manager = QuestionManager()
+        self._load_questions()
+
+
+    def _load_questions(self):
+        # In case ignorebadlines is incorrectly set.
+        try:
+            ibl = self.settings.getboolean('Questions', 'ignorebadlines')
+        except (KeyError, ValueError):
+            messagebox.showerror('Error', '{Invalid ignorebadlines setting.')
+            ibl = DEFAULTS['Questions']['ignorebadlines']
+        
+        # Set function to be called on_bad_line.
+        if ibl:
+            obl = lambda x: None
+        else:
+            obl = lambda x: messagebox.showerror('Error', 'Bad line: {}'.format(x))
+        
+        paths = self.settings.get('Questions', 'files').split(',')
+        for path in paths:
+            if not os.path.isfile(path):
+                messagebox.showerror('Error', '{} does not exist. Could not load questions.')
+                continue
+            self._q_manager.load(path, on_bad_line=obl)
 
 
     def destroy(self):
-        save_jeopardy_settings(self.settings)
+        save_jeopardy_settings(self._settings)
         super().destroy()
 
 
