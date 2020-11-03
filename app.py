@@ -103,11 +103,10 @@ def save_jeopardy_settings(settings:ConfigParser, file:str = 'settings.cnf'):
 @dataclass
 class Question:
     identifer: str
+    category: str
     question: str
     answer: str
-    correct_value: float
-    incorrect_value: float
-    skip_value: float
+    value: float
     tags: Iterable[str] = list
 
 
@@ -143,29 +142,33 @@ class QuestionManager:
             reader = csv.reader(q_file, *args, **kwargs)
             for row in reader:
                 
-                if len(row) < 6:
+                if len(row) < 5:
                     if on_bad_line is None:
                         raise IndexError('Row Too Short: {}'.format(row))
                     else:
                         on_bad_line(row)
                         continue
+                elif len(row) == 5:
+                    tags = []
+                else:
+                    tags = row[5:]
                     
                 # Some values passed to Question must be floats.
                 try:
-                    correct, incorrect, skip = map(float, row[3:6])
+                    value = float(row[4])
                 except ValueError:
                     if on_bad_line is None:
                         raise ValueError('Bad Float Value in Row: {}'.format(row))
                     else:
                         on_bad_line(row)
                         continue
+                
                 # Get the rest of the values passed to Question.
-                id, question, answer = row[:3]
-                tags = row[6:]
+                id, category, question, answer = row[:4]
                 # The *[] syntax is needed since starred expressions must
                 # follow positional arguments. Thus, tags must be passed
                 # not as a positional argument, but as a starred expression.
-                question = Question(id, question, answer, correct, incorrect, skip, tags)
+                question = Question(id, category, question, answer, value, tags)
                 self._questions.append(question)
 
 
@@ -177,8 +180,8 @@ class QuestionManager:
         return random.choice(self._questions)
 
 
-    def random_tag(self, ignore_frequency=True) -> str:
-        '''Choose a random tag from the loaded questions.
+    def random_category(self) -> str:
+        '''Choose a category tag from the loaded questions.
 
         Args:
             ignore_frequency (bool): Whether to weight category choice by category frequency.
@@ -186,14 +189,14 @@ class QuestionManager:
         Note:
             Raises IndexError if no questions are loaded.
 
-        Return (str): Chosen tag.
+        Return (str): Chosen category.
         '''
         # I think generating a set outright rather than generating a list, then a set if
         # needed might prevent full evaluation of the list, conserving memory.
         if ignore_frequency:
-            tags = set(t for t in q.tags for q in self.questions)
+            cats = set(q.category for q in self.questions)
         else:
-            tags = [t for t in q.tags for q in self.questions]
+            cats = [q.category for q in self.questions]
         return random.choice(tags)
 
 
@@ -202,9 +205,9 @@ class QuestionManager:
         last_q = None
         while True:
             if not queue:
-                tag = self.random_tag(ignore_frequency=False)
-                queue = list(sorted([q for q in self.questions if tag in q.tags],
-                                    key=lambda x: x.correct_value))
+                cat = self.random_category()
+                queue = list(sorted([q for q in self.questions if q.category == cat],
+                                    key=lambda x: x.value))
             # A more advanced question-choosing algorithm can go here.
             yield queue.pop(0)
 
