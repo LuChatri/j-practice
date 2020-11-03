@@ -52,7 +52,7 @@ class Page(tk.Frame):
 
     def show_page(self, page_class):
         '''Call the master method to show `page_class`'''
-        self.master.show_page(page_name)
+        self.master.show_page(page_class)
 
 
 ########## End TKinter Wrapper
@@ -180,7 +180,7 @@ class QuestionManager:
         return random.choice(self._questions)
 
 
-    def random_category(self) -> str:
+    def random_category(self, ignore_frequency=True) -> str:
         '''Choose a category tag from the loaded questions.
 
         Args:
@@ -194,10 +194,10 @@ class QuestionManager:
         # I think generating a set outright rather than generating a list, then a set if
         # needed might prevent full evaluation of the list, conserving memory.
         if ignore_frequency:
-            cats = set(q.category for q in self.questions)
+            cats = list(set(q.category for q in self._questions))
         else:
-            cats = [q.category for q in self.questions]
-        return random.choice(tags)
+            cats = [q.category for q in self._questions]
+        return random.choice(cats)
 
 
     def next_question(self) -> Question:
@@ -206,7 +206,7 @@ class QuestionManager:
         while True:
             if not queue:
                 cat = self.random_category()
-                queue = list(sorted([q for q in self.questions if q.category == cat],
+                queue = list(sorted([q for q in self._questions if q.category == cat],
                                     key=lambda x: x.value))
             # A more advanced question-choosing algorithm can go here.
             yield queue.pop(0)
@@ -274,10 +274,23 @@ class Practice(Page):
         super().__init__(*args, **kwargs)
         self._q_manager = QuestionManager()
         self._load_questions()
+        self._generator = self._q_manager.next_question()
 
-        leave = ttk.Button(self, text='Main Menu',
+        self._category = ttk.Label(self, text='', anchor=tk.CENTER)
+        self._value = ttk.Label(self, text='', anchor=tk.CENTER)
+        self._display = ttk.Label(self, text='', anchor=tk.CENTER)
+        self._a_button = ttk.Button(self)
+        self._b_button = ttk.Button(self, text='Start',
+                                    command=self._next_question)
+        leave = ttk.Button(self, text='Leave',
                            command=lambda: self.show_page(Main))
-        leave.grid(row=1, column=0, sticky='nesw')
+
+        self._category.grid(row=0, column=0, columnspan=2, sticky='nesw')
+        self._value.grid(row=1, column=0, columnspan=2, sticky='nesw')
+        self._display.grid(row=2, column=0, columnspan=2, sticky='nesw')
+        self._a_button.grid(row=3, column=0, sticky='nesw')
+        self._b_button.grid(row=3, column=1, sticky='nesw')
+        leave.grid(row=4, column=0, columnspan=2, sticky='nesw')
 
 
     def _load_questions(self):
@@ -307,6 +320,42 @@ class Practice(Page):
                 messagebox.showerror('Error', 'Nonexistent Question File: {}'.format(path))
                 continue
             self._q_manager.load(path, on_bad_line=obl)
+
+
+    def _next_question(self):
+        self._question = next(self._generator)
+        self._category.configure(text=self._question.category)
+        self._value.configure(text=self._question.value)
+        self._display.configure(text=self._question.question)
+        self._a_button.configure(text='Buzz In', command=self._buzz_in)
+        self._b_button.configure(text='Pass', command=self._pass)
+        
+
+    def _buzz_in(self):
+        self._show_answer()
+        self._a_button.configure(text='Correct', command=self._correct)
+        self._b_button.configure(text='Incorrect', command=self._incorrect)
+
+
+    def _pass(self):
+        self._show_answer()
+        self._a_button.configure(text='', command=lambda x: None)
+        self._b_button.configure(text='Next', command=self._next_question)
+
+
+    def _show_answer(self):
+        show = '{q}\n{a}'.format(q=self._question.question, a=self._question.answer)
+        self._display.configure(text=show)
+
+
+    def _correct(self):
+        # Perform Tracking Here
+        self._next_question()
+
+
+    def _incorrect(self):
+        # Perform Tracking Here
+        self._next_question()
 
 
 class Analyze(Page):
