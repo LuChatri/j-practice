@@ -277,11 +277,12 @@ class Practice(Page):
 
         leave = ttk.Button(self, text='Main Menu',
                            command=lambda: self.show_page(Main))
+        leave.grid(row=1, column=0, sticky='nesw')
 
 
     def _load_questions(self):
         '''Load questions from files specified in J-Practice settings.'''
-        settings = master._settings
+        settings = self.master._settings
         
         # ignorebadlines must be a boolean. Warn if it isn't.
         try:
