@@ -191,10 +191,22 @@ class QuestionManager:
         # I think generating a set outright rather than generating a list, then a set if
         # needed might prevent full evaluation of the list, conserving memory.
         if ignore_frequency:
-            cats = set(t for t in q.tags for q in self.questions)
+            tags = set(t for t in q.tags for q in self.questions)
         else:
-            cats = [t for t in q.tags for q in self.questions]
-        return random.choice(cats)
+            tags = [t for t in q.tags for q in self.questions]
+        return random.choice(tags)
+
+
+    def next_question(self) -> Question:
+        queue = []
+        last_q = None
+        while True:
+            if not queue:
+                tag = self.random_tag(ignore_frequency=False)
+                queue = list(sorted([q for q in self.questions if tag in q.tags],
+                                    key=lambda x: x.correct_value)
+            # A more advanced question-choosing algorithm can go here.
+            yield queue.pop(0)
 
 
 ########## End Question Manager
