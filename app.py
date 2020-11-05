@@ -1,10 +1,14 @@
-import configparser
 import csv
 import os.path
 import random
-import re
 import tkinter as tk
+
+from configparser import ConfigParser
+from typing import Callable, Iterable
+from dataclasses import dataclass
 from tkinter import ttk, messagebox
+
+########## TKinter Wrapper
 
 
 class WindowedApplication(tk.Tk):
@@ -48,196 +52,320 @@ class Page(tk.Frame):
 
     def show_page(self, page_class):
         '''Call the master method to show `page_class`'''
-        self.master.show_page(page_name)
+        self.master.show_page(page_class)
 
 
-class App(WindowedApplication):
+########## End TKinter Wrapper
+########## Settings Parser
 
-    DEFAULTS = {
-        'Settings': {
-            'Title': 'J-Practice'
-        },
+
+DEFAULTS = {
+    'Settings': {
+        'title': 'J-Practice'
+    },
         
-        'Questions': {
-            'File': 'questions.csv',
-            'Delimiter': ',',
-            'RoundIndex': '2',
-            'CategoryIndex': '3',
-            'ValueIndex': '4',
-            'ClueIndex': '5',
-            'AnswerIndex': '6'
-        },
-        
-        'Performance': {
-            'File': 'performance.csv',
-            'Delimiter': ',',
-            'RoundIndex': '0',
-            'CategoryIndex': '1',
-            'ValueIndex': '2',
-            'ClueIndex': '3',
-            'AnswerIndex': '4',
-            'OutcomeIndex': '5'
-        }
+    'Questions': {
+        'files': 'questions.csv',
+        'ignorebadlines': 'yes'
     }
-    
-
-    def __init__(self, *args, config_file:str = 'config.cnf', **kwargs):
-        super().__init__(*args, **kwargs)
-        self.config_file = config_file
-        self.config = self._load_config()
-        self.title(self.config.get('Settings', 'Title'))
-        self.questions = self._load_questions()
-        
-        path = self.config.get('Performance', 'File')
-        self.results = open(path, 'a+', encoding='utf-8', newline='')
-        self.writer = csv.writer(self.results, delimiter=self.config.get('Performance', 'Delimiter'))
-        
-        self.active_question = None
-        
-        self._create_widgets()
-        self._next_question()
+}
 
 
-    def _load_config(self):
-        config = configparser.ConfigParser()
-        config.read_dict(self.DEFAULTS)
-        config.read(self.config_file)
-        return config
-        
-        
-    def _load_questions(self):
-        questions = []
-        file = self.config.get('Questions', 'File')
-        
-        if not os.path.isfile(file):
-            self._error('Could not find {}.'.format(file))
-            self.destroy()
-        
-        try:
-            indices = (self.config.getint('Questions', 'RoundIndex'),
-                       self.config.getint('Questions', 'CategoryIndex'),
-                       self.config.getint('Questions', 'ValueIndex'),
-                       self.config.getint('Questions', 'ClueIndex'),
-                       self.config.getint('Questions', 'AnswerIndex'))
-        except ValueError:
-            self._error('Invalid Index Setting in Question File.')
-            self.destroy()
-        
-        with open(file, encoding='utf-8') as infile:
-            reader = csv.reader(infile)
+def load_jeopardy_settings(file:str = 'settings.cnf') -> ConfigParser:
+    '''Load a ConfigParser with J-Practice settings.
+
+    Args:
+        file (str): Path to file to load settings from.
+
+    Return (configparser.ConfigParser): Loaded settings.
+    '''
+    settings = ConfigParser()
+    settings.read_dict(DEFAULTS)
+    settings.read(file)    
+    return settings
+
+
+def save_jeopardy_settings(settings:ConfigParser, file:str = 'settings.cnf'):
+    '''Save J-Practice settings.
+
+    Args:
+        settings (configparser.ConfigParser): Settings to save.
+        file (str): Path to file to load settings from.
+    '''
+    with open(file, 'w') as settings_file:
+        settings.write(settings_file)
+
+
+########## End Settings Parser
+########## Question Manager
+
+
+@dataclass
+class Question:
+    identifer: str
+    category: str
+    question: str
+    answer: str
+    value: float
+    tags: Iterable[str] = list
+
+
+class QuestionManager:
+    '''Loads and generates next J-Practice questions.
+
+    Args:
+        questions (Iterable[Question]): Initial question bank.
+        queue (Iterable[Question]): Mext questions to get when next_question() is called.
+    '''
+
+    def __init__(self, questions: Iterable[Question] = [], queue: Iterable[Question] = []):
+        self._questions = questions
+        self._queue = []
+
+
+    def load(self, file: str, *args, on_bad_line:Callable = None, **kwargs):
+        '''Add questions from a file to the question bank.
+
+        Args:
+            file (str): Path to file to load questions from.
+            ignore_bad_lines (Callable): Function to call when a malformed line is encountered.
+            *args, **kwargs: Parameters to pass to file's CSV reader.
+
+        Note:
+            Each line is expected to contain a Question's fields in series. First, an
+            identifier, then the question, answer, value when correct, value when incorrect,
+            value when skipped, and tags, which can span any number of columns.
+            If on_bad_line is not specified, an error will be raised. If it is specified,
+            the bad row will be passed to the callable.
+        '''
+        with open(file, 'r', encoding='utf-8') as q_file:
+            reader = csv.reader(q_file, *args, **kwargs)
             for row in reader:
-                try:
-                    q = [row[i] for i in indices]
-                    q[2] = int(q[2])
-                    questions.append(q)
-                except (IndexError, ValueError):
-                    continue
-        return questions
-    
-    
-    def _create_widgets(self):
-        question_frame = ttk.Frame(self)
-        question_frame.grid(row=0, column=0, sticky='nesw')
-        
-        self.category_l = ttk.Label(question_frame, text='', 
-                                    anchor=tk.CENTER)
-        self.category_l.grid(row=0, column=0, sticky='nesw')
-        
-        self.value_l = ttk.Label(question_frame, text='', anchor=tk.CENTER)
-        self.value_l.grid(row=1, column=0, sticky='nesw')
-        
-        self.question_l = ttk.Label(question_frame, text='',
-                                    wraplength=400,
-                                    anchor=tk.CENTER)
-        self.question_l.grid(row=2, column=0, sticky='nesw')
-        
-        question_frame.grid_columnconfigure(0, weight=1)
-        question_frame.grid_rowconfigure(0, weight=1)
-        question_frame.grid_rowconfigure(1, weight=1)
-        question_frame.grid_rowconfigure(2, weight=1)
-        
-        b_frame = ttk.Frame(self)
-        b_frame.grid(row=1, column=0, sticky='nesw')
-        
-        self.left_b = ttk.Button(b_frame)
-        self.left_b.grid(row=0, column=0, sticky='nesw')
-        
-        self.right_b = ttk.Button(b_frame)
-        self.right_b.grid(row=0, column=1, sticky='nesw')
-        
-        self.analytics_b = ttk.Button(b_frame, text='Analytics', command=self._show_analytics)
-        self.analytics_b.grid(row=1, column=0, columnspan=2, sticky='nesw')
-        
-        b_frame.grid_rowconfigure(0, weight=1)
-        b_frame.grid_rowconfigure(1, weight=1)
-        b_frame.grid_columnconfigure(0, weight=1)
-        b_frame.grid_columnconfigure(1, weight=1)
-        
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(0, weight=1)
-        
-        
-    def _show_analytics(self):
-        pass
-
-
-    def _next_question(self):
-        self.active_question = random.choice(self.questions)
-        self.category_l.configure(text=self.active_question[1])
-        self.value_l.configure(text='$'+str(self.active_question[2]))
-        self.question_l.configure(text=self.active_question[3])
-        self.left_b.configure(text='Buzz In',
-                              command=self._answer,
-                              state=tk.ACTIVE)
-        self.right_b.configure(text='Skip/No Answer',
-                               command=self._skip_question)
-
-
-    def _answer(self):
-        self.left_b.configure(text='Correct', 
-                              command=self._correct_answer)
-        self.right_b.configure(text='Incorrect',
-                               command=self._incorrect_answer)
-        self._show_answer()
-
-
-    def _show_answer(self):
-        self.question_l.configure(text=self.active_question[4])
-
-
-    def _skip_question(self):
-        self._write(self.active_question, 'Skip')
-        self._show_answer()
-        self.left_b.configure(state=tk.DISABLED)
-        self.right_b.configure(text='Continue', command=self._next_question)
-
+                
+                if len(row) < 5:
+                    if on_bad_line is None:
+                        raise IndexError('Row Too Short: {}'.format(row))
+                    else:
+                        on_bad_line(row)
+                        continue
+                elif len(row) == 5:
+                    tags = []
+                else:
+                    tags = row[5:]
                     
-    def _correct_answer(self):
-        self._write(self.active_question, 'Correct')
-        self._next_question()
+                # Some values passed to Question must be floats.
+                try:
+                    value = float(row[4])
+                except ValueError:
+                    if on_bad_line is None:
+                        raise ValueError('Bad Float Value in Row: {}'.format(row))
+                    else:
+                        on_bad_line(row)
+                        continue
+                
+                # Get the rest of the values passed to Question.
+                id, category, question, answer = row[:4]
+                # The *[] syntax is needed since starred expressions must
+                # follow positional arguments. Thus, tags must be passed
+                # not as a positional argument, but as a starred expression.
+                question = Question(id, category, question, answer, value, tags)
+                self._questions.append(question)
 
 
-    def _incorrect_answer(self):
-        self._write(self.active_question, 'Incorrect')
-        self._next_question()
+    def random_question(self) -> Question:
+        '''Choose a random question from the loaded questions.
+
+        Return (Question): Chosen question.
+        '''
+        return random.choice(self._questions)
 
 
-    def _write(self, question, correct):
-        self.writer.writerow(question+[correct])
+    def random_category(self, ignore_frequency=True) -> str:
+        '''Choose a category tag from the loaded questions.
+
+        Args:
+            ignore_frequency (bool): Whether to weight category choice by category frequency.
+
+        Note:
+            Raises IndexError if no questions are loaded.
+
+        Return (str): Chosen category.
+        '''
+        # I think generating a set outright rather than generating a list, then a set if
+        # needed might prevent full evaluation of the list, conserving memory.
+        if ignore_frequency:
+            cats = list(set(q.category for q in self._questions))
+        else:
+            cats = [q.category for q in self._questions]
+        return random.choice(cats)
 
 
-    def _error(self, error_text):
-        Messagebox.showerror(title='Error', message=error_text) 
+    def next_question(self) -> Question:
+        queue = []
+        last_q = None
+        while True:
+            if not queue:
+                cat = self.random_category()
+                queue = list(sorted([q for q in self._questions if q.category == cat],
+                                    key=lambda x: x.value))
+            # A more advanced question-choosing algorithm can go here.
+            yield queue.pop(0)
+
+
+########## End Question Manager
+########## GUI
+
+class JPractice(WindowedApplication):
+    '''J-Practice App
+
+    Args:
+        *args, **kwargs: Parameters to pass to WindowedApplication.
+    '''
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._settings = load_jeopardy_settings()
+        title = self._settings.get('Settings', 'Title')
+        self.title(title)
+        self.show_page(Main)
     
-    
+
     def destroy(self):
-        with open(self.config_file, 'w') as configfile:
-            self.config.write(configfile)
-        self.results.close()
+        save_jeopardy_settings(self._settings)
         super().destroy()
 
 
+class Main(Page):
+    '''J-Practice Main page
+
+    Args:
+        *args, **kwargs: Parameters to pass to Page.
+    '''
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        headline = ttk.Label(self, text='J-Practice', anchor=tk.CENTER)
+        practice = ttk.Button(self, text='Practice',
+                              command=lambda: self.show_page(Practice))
+        analyze = ttk.Button(self, text='Analyze',
+                             command=lambda: self.show_page(Analyze))
+        settings = ttk.Button(self, text='Settings',
+                              command=lambda: self.show_page(Settings))
+        quit_b = ttk.Button(self, text='Quit', command=self.master.destroy)
+
+        headline.grid(row=0, column=0, sticky='nesw')
+        practice.grid(row=1, column=0, sticky='nesw')
+        analyze.grid(row=2, column=0, sticky='nesw')
+        settings.grid(row=3, column=0, sticky='nesw')
+        quit_b.grid(row=4, column=0, sticky='nesw')
+
+        self.grid_columnconfigure(0, weight=1)
+
+
+class Practice(Page):
+    '''Page for answering trivia questions.
+
+    Args:
+        *args, **kwargs: Parameters to pass to Page.
+    '''
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._q_manager = QuestionManager()
+        self._load_questions()
+        self._generator = self._q_manager.next_question()
+
+        self._category = ttk.Label(self, text='', anchor=tk.CENTER)
+        self._value = ttk.Label(self, text='', anchor=tk.CENTER)
+        self._display = ttk.Label(self, text='', anchor=tk.CENTER)
+        self._a_button = ttk.Button(self)
+        self._b_button = ttk.Button(self, text='Start',
+                                    command=self._next_question)
+        leave = ttk.Button(self, text='Leave',
+                           command=lambda: self.show_page(Main))
+
+        self._category.grid(row=0, column=0, columnspan=2, sticky='nesw')
+        self._value.grid(row=1, column=0, columnspan=2, sticky='nesw')
+        self._display.grid(row=2, column=0, columnspan=2, sticky='nesw')
+        self._a_button.grid(row=3, column=0, sticky='nesw')
+        self._b_button.grid(row=3, column=1, sticky='nesw')
+        leave.grid(row=4, column=0, columnspan=2, sticky='nesw')
+
+
+    def _load_questions(self):
+        '''Load questions from files specified in J-Practice settings.'''
+        settings = self.master._settings
+        
+        # ignorebadlines must be a boolean. Warn if it isn't.
+        try:
+            ibl = settings.getboolean('Questions', 'ignorebadlines')
+        except (KeyError, ValueError):
+            # Give a warning.
+            ibl = settings.get('Questions', 'ignorebadlines')
+            messagebox.showwarning('Warning', 'Invalid IgnoreBadLines Setting: {}.'.format(ibl))
+            # Set a default value for ibl.
+            ibl = DEFAULTS['Questions']['ignorebadlines']
+
+        # Set on_bad_line callback based on ignorebadlines.
+        if ibl:
+            obl = lambda line: None
+        else:
+            obl = lambda line: messagebox.showwarning('Warning', 'Invalid Line: {}'.format(line))
+
+        # Iterate through question files and load questions.
+        paths = settings.get('Questions', 'files').split(',')
+        for path in paths:
+            if not os.path.isfile(path):
+                messagebox.showerror('Error', 'Nonexistent Question File: {}'.format(path))
+                continue
+            self._q_manager.load(path, on_bad_line=obl)
+
+
+    def _next_question(self):
+        self._question = next(self._generator)
+        self._category.configure(text=self._question.category)
+        self._value.configure(text=self._question.value)
+        self._display.configure(text=self._question.question)
+        self._a_button.configure(text='Buzz In', command=self._buzz_in)
+        self._b_button.configure(text='Pass', command=self._pass)
+        
+
+    def _buzz_in(self):
+        self._show_answer()
+        self._a_button.configure(text='Correct', command=self._correct)
+        self._b_button.configure(text='Incorrect', command=self._incorrect)
+
+
+    def _pass(self):
+        self._show_answer()
+        self._a_button.configure(text='', command=lambda x: None)
+        self._b_button.configure(text='Next', command=self._next_question)
+
+
+    def _show_answer(self):
+        show = '{q}\n{a}'.format(q=self._question.question, a=self._question.answer)
+        self._display.configure(text=show)
+
+
+    def _correct(self):
+        # Perform Tracking Here
+        self._next_question()
+
+
+    def _incorrect(self):
+        # Perform Tracking Here
+        self._next_question()
+
+
+class Analyze(Page):
+    pass
+
+
+class Settings(Page):
+    pass
+
+
 if __name__ == '__main__':
-    app = App()
-    app.geometry('500x200')
+    app = JPractice()
     app.mainloop()
